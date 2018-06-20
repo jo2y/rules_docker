@@ -21,6 +21,11 @@ import re
 import tarfile
 import tempfile
 
+try:
+  import lzma
+except ImportError:
+  from backports import lzma
+
 from tools.build_defs.pkg import archive
 from third_party.py import gflags
 
@@ -212,10 +217,17 @@ class TarFile(object):
 
   @contextmanager
   def write_temp_file(self, data, suffix='tar', mode='wb'):
+    xz_compressed = False
+    if suffix.endswith('.xz'):
+      xz_compressed = True
+      suffix = suffix[:-len('.xz')]
     (_, tmpfile) = tempfile.mkstemp(suffix=suffix)
     try:
       with open(tmpfile, mode='wb') as f:
-        f.write(data)
+        if xz_compressed:
+          f.write(lzma.decompress(data))
+        else:
+          f.write(data)
       yield tmpfile
     finally:
       os.remove(tmpfile)
